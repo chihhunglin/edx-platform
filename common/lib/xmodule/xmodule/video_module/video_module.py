@@ -753,14 +753,47 @@ class VideoDescriptor(VideoFields, VideoTranscriptsMixin, VideoStudioViewHandler
                 # Create static dir if not created earlier.
                 resource_fs.makedirs(EXPORT_IMPORT_STATIC_DIR, recreate=True)
 
-                xml.append(
-                    edxval_api.export_to_xml(
-                        video_id=edx_video_id,
-                        resource_fs=resource_fs,
-                        static_dir=EXPORT_IMPORT_STATIC_DIR,
-                        course_id=unicode(self.runtime.course_id.for_branch(None))
-                    )
+                # Backward compatible exports
+                # edxval also exports new transcripts with old naming standard into the
+                # course OLX so that, older open-releases (<= ginkgo), who do not have
+                # deprecated contentstore yet, can also import new-style transcripts into
+                # the their openedX instances.
+
+                # Old transcripts metadata(i.e. sub, transcripts) will be sent to VAL so that,
+                # VAL can generate transcript files such that they're linked to video component
+                # via the old metadata fields.
+                old_transcripts_metadata = dict(sub=None, transcripts={})
+
+                # Retrieve an eligible 'sub' value, this may be used by edxval to create an
+                # 'en' transcript file in /static/ dir. While the non-english transcripts
+                # metadata will be retrieved from `transcripts` field.
+                for possible_sub in [self.sub, self.youtube_id_1_0] + get_html5_ids(self.html5_sources):
+                    sub = possible_sub and possible_sub.strip()
+                    if sub:
+                        old_transcripts_metadata.update({'sub': sub})
+                        break
+
+                if self.transcripts:
+                    old_transcripts_metadata.update({'transcripts': self.transcripts})
+
+                exported_metadata = edxval_api.export_to_xml(
+                    video_id=edx_video_id,
+                    resource_fs=resource_fs,
+                    static_dir=EXPORT_IMPORT_STATIC_DIR,
+                    old_transcripts_metadata=old_transcripts_metadata,
+                    course_id=unicode(self.runtime.course_id.for_branch(None))
                 )
+                xml.append(exported_metadata['xml'])
+
+                # Update the old transcripts metadata from the xml.
+                sub, transcripts = exported_metadata['old_transcripts_metadata'].items()
+                xml.set('sub', sub)
+                for language_code, transcript_file in transcripts.items():
+                    ele = etree.Element('transcript')
+                    ele.set('language', language_code)
+                    ele.set('src', transcript_file)
+                    xml.append(ele)
+
             except edxval_api.ValVideoNotFoundError:
                 pass
 

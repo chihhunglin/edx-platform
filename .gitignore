@@ -138,3 +138,6 @@ dist
 
 # Visual Studio Code
 .vscode
+
+/common/static/coffee
+/lms/static/coffee

@@ -2210,7 +2210,7 @@ INSTALLED_APPS = [
 
     # edX Mobile API
     'mobile_api',
-    'social_django',
+    # 'social_django',
 
     # Surveys
     'survey',
