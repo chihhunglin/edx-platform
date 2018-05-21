@@ -161,6 +161,27 @@ class ImportTestMixin(object):
         """
         return []
 
+    def test_bad_filename_error(self):
+        """
+        Scenario: I should be reprimanded for trying to upload something that isn't a .tar.gz file.
+            Given that I select a file that is an .mp4 for upload
+            An error message will appear
+        """
+        self.import_page.upload_tarball('funny_cat_video.mp4')
+        self.import_page.wait_for_filename_error()
+
+    def test_bad_import(self):
+        """
+        Scenario: I should see a failed checklist when uploading an invalid course or library
+            Given that I am on an import page
+            And I upload a tarball with a broken XML file
+            The tasks should be confirmed up until the 'Updating' task
+            And the 'Updating' task should be marked failed
+            And the remaining tasks should not be marked as started
+        """
+        self.import_page.upload_tarball(self.bad_tarball_name)
+        self.import_page.wait_for_tasks(fail_on='Updating')
+
 
 @attr(shard=7)
 class TestEntranceExamCourseImport(ImportTestMixin, StudioCourseTest):
